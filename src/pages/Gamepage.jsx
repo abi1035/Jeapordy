@@ -1,0 +1,506 @@
+import { useState } from "react";
+import { categories, questionBank } from "../data/questions";
+
+import "./Gamepage.css";
+
+const values = [100, 200, 300, 400, 500];
+
+/* =====================================================
+   CREATE UNIQUE ID
+===================================================== */
+
+function createId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random()}`;
+}
+
+/* =====================================================
+   CREATE RANDOM BOARD
+
+   If there was a previous board, we try not to use
+   the exact same clue in the same category/value slot.
+===================================================== */
+
+function createBoard(previousBoard = null) {
+  const board = {};
+
+  categories.forEach((category) => {
+    board[category] = values.map((value) => {
+      const possibleQuestions = questionBank[category].filter(
+        (question) => question.value === value,
+      );
+
+      const previousQuestion = previousBoard?.[category]?.find(
+        (question) => question.value === value,
+      );
+
+      let availableQuestions = possibleQuestions;
+
+      /*
+        Avoid immediately repeating the same question
+        when we have another option available.
+      */
+      if (previousQuestion && possibleQuestions.length > 1) {
+        const alternatives = possibleQuestions.filter(
+          (question) => question.clue !== previousQuestion.clue,
+        );
+
+        if (alternatives.length > 0) {
+          availableQuestions = alternatives;
+        }
+      }
+
+      const randomQuestion =
+        availableQuestions[
+          Math.floor(Math.random() * availableQuestions.length)
+        ];
+
+      return {
+        ...randomQuestion,
+        id: createId(),
+      };
+    });
+  });
+
+  return board;
+}
+
+/* =====================================================
+   GAME PAGE
+===================================================== */
+
+function Gamepage({ participants = [], onBackHome }) {
+  /* ===================================================
+     BOARD
+  =================================================== */
+
+  const [board, setBoard] = useState(() => createBoard());
+
+  const [answeredQuestions, setAnsweredQuestions] = useState(new Set());
+
+  const [gameNumber, setGameNumber] = useState(1);
+
+  /* ===================================================
+     QUESTION MODAL
+  =================================================== */
+
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
+
+  const [showAnswer, setShowAnswer] = useState(false);
+
+  /* ===================================================
+     TEAMS
+  =================================================== */
+
+  const [teams, setTeams] = useState([
+    {
+      name: "Team 1",
+      score: 0,
+    },
+    {
+      name: "Team 2",
+      score: 0,
+    },
+  ]);
+
+  /* ===================================================
+     OPEN QUESTION
+  =================================================== */
+
+  const openQuestion = (category, question) => {
+    if (answeredQuestions.has(question.id)) {
+      return;
+    }
+
+    setSelectedQuestion({
+      ...question,
+      category,
+    });
+
+    setShowAnswer(false);
+  };
+
+  /* ===================================================
+     FINISH QUESTION
+  =================================================== */
+
+  const finishQuestion = () => {
+    if (selectedQuestion) {
+      setAnsweredQuestions((currentQuestions) => {
+        const updatedQuestions = new Set(currentQuestions);
+
+        updatedQuestions.add(selectedQuestion.id);
+
+        return updatedQuestions;
+      });
+    }
+
+    setSelectedQuestion(null);
+    setShowAnswer(false);
+  };
+
+  /* ===================================================
+     CLOSE WITHOUT USING QUESTION
+  =================================================== */
+
+  const cancelQuestion = () => {
+    setSelectedQuestion(null);
+    setShowAnswer(false);
+  };
+
+  /* ===================================================
+     TEAM NAME
+  =================================================== */
+
+  const updateTeamName = (teamIndex, value) => {
+    setTeams((currentTeams) =>
+      currentTeams.map((team, index) =>
+        index === teamIndex
+          ? {
+              ...team,
+              name: value,
+            }
+          : team,
+      ),
+    );
+  };
+
+  /* ===================================================
+     CORRECT ANSWER
+  =================================================== */
+
+  const awardPoints = (teamIndex) => {
+    if (!selectedQuestion) {
+      return;
+    }
+
+    setTeams((currentTeams) =>
+      currentTeams.map((team, index) =>
+        index === teamIndex
+          ? {
+              ...team,
+
+              score: team.score + selectedQuestion.value,
+            }
+          : team,
+      ),
+    );
+
+    finishQuestion();
+  };
+
+  /* ===================================================
+     INCORRECT ANSWER
+
+     Subtract the score but keep the question open so
+     another team can still answer.
+  =================================================== */
+
+  const subtractPoints = (teamIndex) => {
+    if (!selectedQuestion) {
+      return;
+    }
+
+    setTeams((currentTeams) =>
+      currentTeams.map((team, index) =>
+        index === teamIndex
+          ? {
+              ...team,
+
+              score: team.score - selectedQuestion.value,
+            }
+          : team,
+      ),
+    );
+  };
+
+  /* ===================================================
+     NEW GAME
+
+     This now:
+       - generates a fresh board
+       - restores every tile
+       - resets scores
+       - closes modal
+       - increments Game #
+  =================================================== */
+
+  const resetGame = () => {
+    setBoard((currentBoard) => createBoard(currentBoard));
+
+    setAnsweredQuestions(new Set());
+
+    setSelectedQuestion(null);
+
+    setShowAnswer(false);
+
+    setTeams((currentTeams) =>
+      currentTeams.map((team) => ({
+        ...team,
+        score: 0,
+      })),
+    );
+
+    setGameNumber((currentNumber) => currentNumber + 1);
+  };
+
+  /* ===================================================
+     CALCULATIONS
+  =================================================== */
+
+  const totalQuestions = categories.length * values.length;
+
+  const remainingQuestions = totalQuestions - answeredQuestions.size;
+
+  /* ===================================================
+     PAGE
+  =================================================== */
+
+  return (
+    <div className="gamepage">
+      {/* ===============================================
+          HEADER
+      =============================================== */}
+
+      <header className="gamepage__header">
+        <div>
+          <p className="gamepage__eyebrow">Trivia Night</p>
+
+          <h1 className="gamepage__title">JEOPARDY!</h1>
+
+          <div className="gamepage__game-meta">
+            <span>Game #{gameNumber}</span>
+
+            <span>•</span>
+
+            <span>
+              {participants.length}{" "}
+              {participants.length === 1 ? "player" : "players"}
+            </span>
+          </div>
+        </div>
+
+        <div className="gamepage__header-actions">
+          <div className="gamepage__remaining">
+            <strong>{remainingQuestions}</strong>
+
+            <span>Questions Remaining</span>
+          </div>
+
+          <button
+            type="button"
+            className="gamepage__secondary-button"
+            onClick={onBackHome}
+          >
+            ← Back to Setup
+          </button>
+
+          <button
+            type="button"
+            className="gamepage__new-game-button"
+            onClick={resetGame}
+          >
+            ↻ New Game
+          </button>
+        </div>
+      </header>
+
+      {/* ===============================================
+          PARTICIPANTS
+      =============================================== */}
+
+      <section className="gamepage__participants-card">
+        <div className="gamepage__participants-heading">
+          <div>
+            <p className="gamepage__section-label">Participants</p>
+
+            <h2>Today&apos;s Players</h2>
+          </div>
+
+          <div className="gamepage__participant-count">
+            {participants.length}
+
+            <span>{participants.length === 1 ? "Player" : "Players"}</span>
+          </div>
+        </div>
+
+        <div className="gamepage__participant-list">
+          {participants.map((participant, index) => (
+            <div
+              className="gamepage__participant"
+              key={`${participant.name}-${participant.unit}-${index}`}
+            >
+              <div className="gamepage__participant-number">{index + 1}</div>
+
+              <div className="gamepage__participant-info">
+                <strong>{participant.name}</strong>
+
+                <span>{participant.unit}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===============================================
+          SCOREBOARD
+      =============================================== */}
+
+      <section className="gamepage__scoreboard">
+        {teams.map((team, index) => (
+          <article className="gamepage__team-card" key={index}>
+            <div className="gamepage__team-details">
+              <label htmlFor={`team-${index}`}>Team {index + 1}</label>
+
+              <input
+                id={`team-${index}`}
+                type="text"
+                value={team.name}
+                onChange={(event) => updateTeamName(index, event.target.value)}
+              />
+            </div>
+
+            <div className="gamepage__team-score">
+              ${team.score.toLocaleString()}
+            </div>
+          </article>
+        ))}
+      </section>
+
+      {/* ===============================================
+          BOARD
+      =============================================== */}
+
+      <main className="gamepage__board">
+        {categories.map((category) => (
+          <section className="gamepage__category" key={category}>
+            <div className="gamepage__category-title">{category}</div>
+
+            {board[category].map((question) => {
+              const answered = answeredQuestions.has(question.id);
+
+              return (
+                <button
+                  type="button"
+                  key={question.id}
+                  disabled={answered}
+                  className={`gamepage__question-tile ${
+                    answered ? "gamepage__question-tile--answered" : ""
+                  }`}
+                  onClick={() => openQuestion(category, question)}
+                >
+                  {!answered && `$${question.value}`}
+                </button>
+              );
+            })}
+          </section>
+        ))}
+      </main>
+
+      {/* ===============================================
+          QUESTION MODAL
+      =============================================== */}
+
+      {selectedQuestion && (
+        <div className="gamepage__modal-backdrop">
+          <section className="gamepage__question-modal">
+            <div className="gamepage__modal-header">
+              <div>
+                <p>{selectedQuestion.category}</p>
+
+                <strong>${selectedQuestion.value}</strong>
+              </div>
+
+              <button
+                type="button"
+                className="gamepage__modal-close"
+                onClick={cancelQuestion}
+                aria-label="Close question"
+                title="Return question to board"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* CLUE */}
+
+            <div className="gamepage__clue">
+              <p>{selectedQuestion.clue}</p>
+            </div>
+
+            {!showAnswer ? (
+              <div className="gamepage__reveal-area">
+                <button
+                  type="button"
+                  className="gamepage__reveal-button"
+                  onClick={() => setShowAnswer(true)}
+                >
+                  Reveal Answer
+                </button>
+              </div>
+            ) : (
+              <div className="gamepage__answer-area">
+                <p className="gamepage__correct-label">Correct Response</p>
+
+                <h2>{selectedQuestion.answer}</h2>
+
+                {/* CORRECT */}
+
+                <div className="gamepage__score-section">
+                  <p>Correct</p>
+
+                  <div className="gamepage__correct-buttons">
+                    {teams.map((team, index) => (
+                      <button
+                        type="button"
+                        key={index}
+                        onClick={() => awardPoints(index)}
+                      >
+                        +$
+                        {selectedQuestion.value} to{" "}
+                        {team.name || `Team ${index + 1}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* INCORRECT */}
+
+                <div className="gamepage__score-section">
+                  <p>Incorrect</p>
+
+                  <div className="gamepage__incorrect-buttons">
+                    {teams.map((team, index) => (
+                      <button
+                        type="button"
+                        key={index}
+                        onClick={() => subtractPoints(index)}
+                      >
+                        -$
+                        {selectedQuestion.value} from{" "}
+                        {team.name || `Team ${index + 1}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="gamepage__no-score-button"
+                  onClick={finishQuestion}
+                >
+                  No Score / Continue
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default Gamepage;
