@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { categories, questionBank } from "../data/questions";
+import { doubleJeopardyQuestions } from "../data/doubleJeopardyQuestions";
 
 import "./Gamepage.css";
 
@@ -68,6 +69,19 @@ function createBoard(previousBoard = null) {
   return board;
 }
 
+function createTeamsFromParticipants(participants) {
+  const uniqueUnits = [
+    ...new Set(
+      participants.map((participant) => participant.unit).filter(Boolean),
+    ),
+  ];
+
+  return uniqueUnits.map((unit) => ({
+    name: unit,
+    score: 0,
+  }));
+}
+
 /* =====================================================
    GAME PAGE
 ===================================================== */
@@ -82,6 +96,7 @@ function Gamepage({ participants = [], onBackHome }) {
   const [answeredQuestions, setAnsweredQuestions] = useState(new Set());
 
   const [gameNumber, setGameNumber] = useState(1);
+  const [doubleJeopardyUsed, setDoubleJeopardyUsed] = useState(false);
 
   /* ===================================================
      QUESTION MODAL
@@ -95,16 +110,9 @@ function Gamepage({ participants = [], onBackHome }) {
      TEAMS
   =================================================== */
 
-  const [teams, setTeams] = useState([
-    {
-      name: "Team 1",
-      score: 0,
-    },
-    {
-      name: "Team 2",
-      score: 0,
-    },
-  ]);
+  const [teams, setTeams] = useState(() =>
+    createTeamsFromParticipants(participants),
+  );
 
   /* ===================================================
      OPEN QUESTION
@@ -128,7 +136,7 @@ function Gamepage({ participants = [], onBackHome }) {
   =================================================== */
 
   const finishQuestion = () => {
-    if (selectedQuestion) {
+    if (selectedQuestion && !selectedQuestion.isDoubleJeopardy) {
       setAnsweredQuestions((currentQuestions) => {
         const updatedQuestions = new Set(currentQuestions);
 
@@ -154,19 +162,6 @@ function Gamepage({ participants = [], onBackHome }) {
   /* ===================================================
      TEAM NAME
   =================================================== */
-
-  const updateTeamName = (teamIndex, value) => {
-    setTeams((currentTeams) =>
-      currentTeams.map((team, index) =>
-        index === teamIndex
-          ? {
-              ...team,
-              name: value,
-            }
-          : team,
-      ),
-    );
-  };
 
   /* ===================================================
      CORRECT ANSWER
@@ -228,6 +223,35 @@ function Gamepage({ participants = [], onBackHome }) {
        - increments Game #
   =================================================== */
 
+  const openDoubleJeopardy = () => {
+    if (doubleJeopardyUsed) {
+      return;
+    }
+
+    const randomQuestion =
+      doubleJeopardyQuestions[
+        Math.floor(Math.random() * doubleJeopardyQuestions.length)
+      ];
+
+    setDoubleJeopardyUsed(true);
+
+    setSelectedQuestion({
+      id: createId(),
+
+      category: randomQuestion.topic,
+
+      clue: randomQuestion.clue,
+
+      answer: randomQuestion.answer,
+
+      value: 1000,
+
+      isDoubleJeopardy: true,
+    });
+
+    setShowAnswer(false);
+  };
+
   const resetGame = () => {
     setBoard((currentBoard) => createBoard(currentBoard));
 
@@ -245,6 +269,7 @@ function Gamepage({ participants = [], onBackHome }) {
     );
 
     setGameNumber((currentNumber) => currentNumber + 1);
+    setDoubleJeopardyUsed(false);
   };
 
   /* ===================================================
@@ -298,6 +323,14 @@ function Gamepage({ participants = [], onBackHome }) {
             ← Back to Setup
           </button>
 
+          <button
+            type="button"
+            className="gamepage__double-jeopardy-button"
+            disabled={doubleJeopardyUsed}
+            onClick={openDoubleJeopardy}
+          >
+            {doubleJeopardyUsed ? "Double Jeopardy Used" : "⚡ Double Jeopardy"}
+          </button>
           <button
             type="button"
             className="gamepage__new-game-button"
@@ -409,6 +442,12 @@ function Gamepage({ participants = [], onBackHome }) {
           <section className="gamepage__question-modal">
             <div className="gamepage__modal-header">
               <div>
+                {selectedQuestion.isDoubleJeopardy && (
+                  <div className="gamepage__double-banner">
+                    ⚡ DOUBLE JEOPARDY
+                  </div>
+                )}
+
                 <p>{selectedQuestion.category}</p>
 
                 <strong>${selectedQuestion.value}</strong>
@@ -469,23 +508,23 @@ function Gamepage({ participants = [], onBackHome }) {
 
                 {/* INCORRECT */}
 
-                <div className="gamepage__score-section">
-                  <p>Incorrect</p>
+                {!selectedQuestion.isDoubleJeopardy && (
+                  <div className="gamepage__score-section">
+                    <p>Incorrect</p>
 
-                  <div className="gamepage__incorrect-buttons">
-                    {teams.map((team, index) => (
-                      <button
-                        type="button"
-                        key={index}
-                        onClick={() => subtractPoints(index)}
-                      >
-                        -$
-                        {selectedQuestion.value} from{" "}
-                        {team.name || `Team ${index + 1}`}
-                      </button>
-                    ))}
+                    <div className="gamepage__incorrect-buttons">
+                      {teams.map((team, index) => (
+                        <button
+                          type="button"
+                          key={index}
+                          onClick={() => subtractPoints(index)}
+                        >
+                          -${selectedQuestion.value} from {team.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <button
                   type="button"
