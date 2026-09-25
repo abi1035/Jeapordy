@@ -1,31 +1,26 @@
-import { useState } from "react";
-import Homepage from "./pages/Homepage";
+import { useEffect, useState } from "react";
+import SplashScreen from "./pages/SplashScreen";
 import Gamepage from "./pages/Gamepage";
 import "./App.css";
 
 function App() {
-  const [currentPage, setCurrentPage] = useState("home");
+  const [showSplash, setShowSplash] = useState(true);
 
-  const [participants, setParticipants] = useState([]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
 
-  const handleStartGame = (players) => {
-    setParticipants(players);
-    setCurrentPage("game");
-  };
+    return () => {
+      clearTimeout(timer);
+    };
+  }, []);
 
-  const handleBackHome = () => {
-    setCurrentPage("home");
-  };
+  if (showSplash) {
+    return <SplashScreen onSkip={() => setShowSplash(false)} />;
+  }
 
-  return (
-    <div className="app">
-      {currentPage === "home" && <Homepage onStartGame={handleStartGame} />}
-
-      {currentPage === "game" && (
-        <Gamepage participants={participants} onBackHome={handleBackHome} />
-      )}
-    </div>
-  );
+  return <Gamepage />;
 }
 
 export default App;

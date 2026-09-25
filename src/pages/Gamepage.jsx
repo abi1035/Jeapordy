@@ -69,24 +69,10 @@ function createBoard(previousBoard = null) {
   return board;
 }
 
-function createTeamsFromParticipants(participants) {
-  const uniqueUnits = [
-    ...new Set(
-      participants.map((participant) => participant.unit).filter(Boolean),
-    ),
-  ];
-
-  return uniqueUnits.map((unit) => ({
-    name: unit,
-    score: 0,
-  }));
-}
-
 /* =====================================================
    GAME PAGE
 ===================================================== */
-
-function Gamepage({ participants = [], onBackHome }) {
+function Gamepage() {
   /* ===================================================
      BOARD
   =================================================== */
@@ -110,10 +96,12 @@ function Gamepage({ participants = [], onBackHome }) {
      TEAMS
   =================================================== */
 
-  const [teams, setTeams] = useState(() =>
-    createTeamsFromParticipants(participants),
-  );
-
+  const [teams, setTeams] = useState([
+    {
+      name: "Resident",
+      score: 0,
+    },
+  ]);
   /* ===================================================
      OPEN QUESTION
   =================================================== */
@@ -298,13 +286,6 @@ function Gamepage({ participants = [], onBackHome }) {
 
           <div className="gamepage__game-meta">
             <span>Game #{gameNumber}</span>
-
-            <span>•</span>
-
-            <span>
-              {participants.length}{" "}
-              {participants.length === 1 ? "player" : "players"}
-            </span>
           </div>
         </div>
 
@@ -314,14 +295,6 @@ function Gamepage({ participants = [], onBackHome }) {
 
             <span>Questions Remaining</span>
           </div>
-
-          <button
-            type="button"
-            className="gamepage__secondary-button"
-            onClick={onBackHome}
-          >
-            ← Back to Setup
-          </button>
 
           <button
             type="button"
@@ -342,65 +315,21 @@ function Gamepage({ participants = [], onBackHome }) {
       </header>
 
       {/* ===============================================
-          PARTICIPANTS
-      =============================================== */}
-
-      <section className="gamepage__participants-card">
-        <div className="gamepage__participants-heading">
-          <div>
-            <p className="gamepage__section-label">Participants</p>
-
-            <h2>Today&apos;s Players</h2>
-          </div>
-
-          <div className="gamepage__participant-count">
-            {participants.length}
-
-            <span>{participants.length === 1 ? "Player" : "Players"}</span>
-          </div>
-        </div>
-
-        <div className="gamepage__participant-list">
-          {participants.map((participant, index) => (
-            <div
-              className="gamepage__participant"
-              key={`${participant.name}-${participant.unit}-${index}`}
-            >
-              <div className="gamepage__participant-number">{index + 1}</div>
-
-              <div className="gamepage__participant-info">
-                <strong>{participant.name}</strong>
-
-                <span>{participant.unit}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ===============================================
-          SCOREBOARD
-      =============================================== */}
+    RESIDENT SCORE
+=============================================== */}
 
       <section className="gamepage__scoreboard">
-        {teams.map((team, index) => (
-          <article className="gamepage__team-card" key={index}>
-            <div className="gamepage__team-details">
-              <label htmlFor={`team-${index}`}>Team {index + 1}</label>
+        <article className="gamepage__team-card">
+          <div className="gamepage__team-details">
+            <label>Current Score</label>
 
-              <input
-                id={`team-${index}`}
-                type="text"
-                value={team.name}
-                onChange={(event) => updateTeamName(index, event.target.value)}
-              />
-            </div>
+            <strong className="gamepage__team-name">Resident</strong>
+          </div>
 
-            <div className="gamepage__team-score">
-              ${team.score.toLocaleString()}
-            </div>
-          </article>
-        ))}
+          <div className="gamepage__team-score">
+            ${teams[0].score.toLocaleString()}
+          </div>
+        </article>
       </section>
 
       {/* ===============================================

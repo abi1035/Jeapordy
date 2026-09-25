@@ -19,6 +19,18 @@
   color: #f5f7f7;
 }
 
+.gamepage__team-name {
+  display: block;
+
+  margin-top: 4px;
+
+  color: #ffffff;
+
+  font-size: 1.05rem;
+
+  font-weight: 900;
+}
+
 /* =====================================================
    HEADER
 ===================================================== */
